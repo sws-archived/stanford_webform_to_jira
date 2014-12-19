@@ -16,14 +16,16 @@ Install this module like any other module. [See Drupal Documentation](https://dr
 Configuration
 ---
 
-1. Connect to Jira through the Jira Rest module  configuration page. admin/config/services/jira_rest. You may want to create a user in Jira for this connection.
+1. Connect to Jira through the Jira Rest module  configuration page.   
+admin/config/services/jira_rest. You may want to create a user in Jira for this connection.
 
-2. Create a webform and add some components.
+2. Create a webform and add some components.   
 Must have a summary and a project key component. The project component should be a hidden field with the project's short name as the value. eg: BASIC
 
-3. Enable Jira submission on the form settings tab of the webform. eg: node/[123]/webform/configure.
+3. Enable Jira submission on the form settings tab of the webform.   
+eg: node/[123]/webform/configure.
 
-4. Choose the default issue type.
+4. Choose the default issue type.   
 This setting in on the form settings page for the webform and should be set to the name (case-sensitive) value of the issue type you want to create.
 
 Troubleshooting
