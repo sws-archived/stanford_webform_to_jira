@@ -1,0 +1,8 @@
+name = Stanford Webform to Jira
+description = Allows users to create webforms that are submitted as jira issues
+core = 7.x
+package = Stanford
+project = stanford_webform_to_jira
+dependencies[] = webform
+dependencies[] = jira_rest
+project status url = https://github.com/SU-SWS/stanford_webform_to_jira

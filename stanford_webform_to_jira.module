@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * Implements hook_help().
+ */
+function stanford_webform_to_jira_help($path, $arg) {
+  switch ($path) {
+    // Main module help for the block module
+    /*
+     *case 'admin/help#block':
+     *  return '<p>' . t('Blocks are boxes of content rendered into an area, or region, of a web page. The default theme Bartik, for example, implements the regions "Sidebar first", "Sidebar second", "Featured", "Content", "Header", "Footer", etc., and a block may appear in any one of these areas. The <a href="@blocks">blocks administration page</a> provides a drag-and-drop interface for assigning a block to a region, and for controlling the order of blocks within regions.', array('@blocks' => url('admin/structure/block'))) . '</p>';
+     */
+    case 'stanford_webform_to_jira':
+      return '<p>' . t('Contect %help', array('%help' => "help@stanford.edu")) . '</p>';
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function stanford_webform_to_jira_form_alter(&$form, &$form_state, $form_id) {
+
+  $node = !empty($form['#node']) ? $form['#node'] : FALSE;
+
+  // Add configuration to the webform config page.
+  if ($form_id == "webform_configure_form") {
+    $form['stanford_jira'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Jira Settings',
+      '#description' => t('If enabled, the values of this form when submitted will be sent to the configured Jira instance.'),
+      '#collapsible' => TRUE,
+      '#collapsed' => empty($node->webform['jira']['enable_jira']),
+    );
+
+    $form['stanford_jira']['enable_jira'] = array(
+      '#type' => 'checkbox',
+      '#title' => 'Enable Jira Submission',
+      '#description' => t("Enable this form to be submitted to Jira."),
+      '#default_value' => isset($node->webform['jira']['enable_jira']) ? $node->webform['jira']['enable_jira'] : 0,
+    );
+
+    $form['stanford_jira']['default_issue_type'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Default issue type',
+      '#description' => t("Please enter the name of the issue type. eg: Bug"),
+      '#default_value' => isset($node->webform['jira']['default_issue_type']) ? $node->webform['jira']['default_issue_type'] : 'Bug',
+    );
+
+    $form['#submit'][] = "stanford_webform_to_jira_conf_submit";
+  }
+
+  // Add the submit and validate functions to the webform node.
+  if (strpos($form_id, "webform_client_form_") !== FALSE && !empty($node->webform['jira']['enable_jira'])) {
+    $form['#validate'][] = "stanford_webform_to_jira_form_validate";
+    $form['#submit'][] = "stanford_webform_to_jira_form_submit";
+  }
+
+}
+
+/**
+ * Add the configuration for Jira to the webform variables.
+ * @param  [type] $form       [description]
+ * @param  [type] $form_state [description]
+ * @return [type]             [description]
+ */
+function stanford_webform_to_jira_conf_submit(&$form, &$form_state) {
+  $node = &$form['#node'];
+
+  $variable_name = 'stanford_jira_webform_' . $node->nid;
+  $values = array();
+  $values['enable_jira'] = check_plain($form_state['values']['enable_jira']);
+  $values['default_issue_type'] = check_plain($form_state['values']['default_issue_type']);
+
+  variable_set($variable_name, $values);
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function stanford_webform_to_jira_node_load($nodes, $types) {
+  foreach ($nodes as $key => $node) {
+    if ($node->type == "webform") {
+      $variable_name = 'stanford_jira_webform_' . $node->nid;
+      $jira_stuff = variable_get($variable_name, NULL);
+      if (!is_null($jira_stuff)) {
+        $nodes[$key]->webform['jira'] = $jira_stuff;
+      }
+    }
+  }
+  return $nodes;
+}
+
+
+/**
+ * Extra validation to have on form submittal. Might be nice to have an error.
+ * @param  [type] $form       [description]
+ * @param  [type] $form_state [description]
+ * @return [type]             [description]
+ */
+function stanford_webform_to_jira_form_validate($form, $form_state) {
+
+  // Project key is required.
+  $project_key = FALSE;
+
+  foreach ($form_state['webform']['component_tree']['children'] as $cid => $component) {
+    if ($component['form_key'] == "project") {
+      $project_key = TRUE;
+    }
+  }
+
+  if (!$project_key) {
+    form_set_error('', 'Missing project key. Please add a project component to this form.');
+  }
+
+}
+
+/**
+ * Process the form and send the information to jiras.
+ * @param array $form
+ *   The form array.
+ * @param  array $form_state
+ *   The form state array.
+ */
+function stanford_webform_to_jira_form_submit($form, $form_state) {
+  $username = variable_get("jira_rest_username");
+  $password = variable_get("jira_rest_password");
+  $webform = $form['#node'];
+
+  $issuetype = $webform->webform['jira']['default_issue_type'];
+
+  $issuedata = array();
+  $issuedata['fields'] = array();
+  $issuedata['fields']['issuetype'] = array('name' => $issuetype);
+  $issuedata['fields']['summary'] = "";
+  $issuedata['fields']['description'] = "";
+
+  foreach ($form_state['webform']['component_tree']['children'] as $cid => $component) {
+    $value = stanford_webform_to_jira_prepare_values($form_state['values']['submitted'][$cid]);
+
+    // Project key needs to be.
+    if ($component['form_key'] == "project") {
+      $issuedata['fields']['project']['key'] = $value;
+      continue;
+    }
+
+    // Summary is required.
+    if ($component['form_key'] == "summary") {
+      $issuedata['fields']['summary'] = $value;
+      continue;
+    }
+
+    // Components looper.
+    $key = $component['name'];
+    $issuedata['fields']['description'] .= $key . ": " . PHP_EOL . $value . PHP_EOL . PHP_EOL;
+  }
+
+  try {
+    $response = jira_rest_createissue($username, $password, $issuedata);
+  }
+  catch (Exception $e) {
+    watchdog('stanford_webform_to_jira', $e->getMessage(), array(), WATCHDOG_ERROR);
+    drupal_set_message(check_plain(htmlspecialchars_decode($e->getMessage())), 'error');
+    drupal_set_message("ISSUE TICKET WAS NOT CREATED. Please try again. If this error persists please contact the site administrator.", 'error');
+  }
+
+  drupal_set_message("Jira ticket created: " . $response->key, "status");
+
+}
+
+/**
+ * Format submitted values to work in the body.
+ * @param mixed $value
+ *   Submitted form data
+ * @return mixed
+ *   Formatted submitted form data. Either an integer or a string.
+ */
+function stanford_webform_to_jira_prepare_values($value) {
+
+  // Array or object.
+  if (is_array($value) || is_object($value)) {
+    $output = "";
+    foreach ($value as $key => $line) {
+      $output .= $key . ": " . $line . PHP_EOL;
+    }
+    return $output;
+  }
+
+  // Everything else.
+  return $value;
+
+}
