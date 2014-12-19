@@ -4,8 +4,7 @@
 Maintainers: [jbickar](https://github.com/jbickar), [sherakama](https://github.com/sherakama)
 [Changelog.txt](CHANGELOG.txt)
 
-Drupal Features module for pulling creating forms with webform that can be directly submitted to a Jira project.
-
+Drupal Features module for creating forms with webform that can be directly submitted to a Jira project.
 
 
 Installation
