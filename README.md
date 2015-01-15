@@ -30,7 +30,7 @@ This setting in on the form settings page for the webform and should be set to t
 Troubleshooting
 ---
 
-If you are experiencing issues with this module try reverting the feature first. If you are still experiencing issues try posting an issue on the GitHub issues page.
+If you are experiencing issues try posting an issue on the GitHub issues page.
 
 Contribution / Collaboration
 ---
