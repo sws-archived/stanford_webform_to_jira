@@ -151,19 +151,23 @@ function stanford_webform_to_jira_form_submit($form, $form_state) {
 
     // Fix version.
     if ($component['form_key'] == "fix_versions") {
-      $issuedata['fields']['fixVersions'] = array($value);
+      $obj = new StdClass();
+      $obj->id = $value;
+      $issuedata['fields']['fixVersions'] = array($obj);
       continue;
     }
 
     // Version.
     if ($component['form_key'] == "versions") {
-      $issuedata['fields']['versions'] = array($value);
+      $obj = new StdClass();
+      $obj->id = $value;
+      $issuedata['fields']['versions'] = array($obj);
       continue;
     }
 
     // Labels.
     if ($component['form_key'] == "labels") {
-      $issuedata['fields']['labels'] = $value;
+      $issuedata['fields']['labels'] = explode(",", $value);
       continue;
     }
 
