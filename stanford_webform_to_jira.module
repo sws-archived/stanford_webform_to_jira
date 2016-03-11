@@ -171,6 +171,18 @@ function stanford_webform_to_jira_form_submit($form, $form_state) {
       continue;
     }
 
+   // JIRA Username to assign issue to.
+    if ($component['form_key'] == "assignee") {
+      $issuedata['fields']['assignee']['name'] = $value;
+      continue;
+    }
+    
+    // JIRA Username to set as reporter. If not set, defaults to usernamed in jira_rest confg.
+    if ($component['form_key'] == "reporter") {
+      $issuedata['fields']['reporter']['name'] = $value;
+      continue;
+    }
+
     // Components looper.
     $key = $component['name'];
     $issuedata['fields']['description'] .= $key . ": " . PHP_EOL . $value . PHP_EOL . PHP_EOL;
